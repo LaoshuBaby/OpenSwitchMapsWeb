@@ -1093,6 +1093,18 @@ let maps = [
 		},
 	},
 
+	
+	{
+		// https://anitabi.cn/map?c=139.8076%2C35.3451&z=7.9
+		name: "巡礼地图",
+		category: SPECIAL_CATEGORY,
+		default_check: false,
+		domain: "anitabi.cn",
+		description: "Seichi location search for ACGN works",
+		getUrl(lat, lon, zoom) {
+			return "https://anitabi.cn/map?c=" + lat + "%2C" + lon + "&z=" + zoom;
+		},
+	},
 	{
 		name: "聖地巡礼マップ",
 		category: SPECIAL_CATEGORY,
