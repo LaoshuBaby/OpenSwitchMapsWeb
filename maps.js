@@ -64,19 +64,21 @@ let maps = [
 			return `https://www.google.com/maps/${extra && extra.pin_lat ? "place/" + LatLon2DMS(extra.pin_lat, extra.pin_lon) + "/" : ""}@${lat},${lon},${zoom}z`;
 		},
 		getLatLonZoom(url) {
-			let match, lat, lon, zoom, extra;
+			let match, lat, lon, zoom, extra, bearing, pitch;
 			if ((match = url.match(/google.*maps.*@(-?\d[0-9.]*),(-?\d[0-9.]*),(\d{1,2})[.z]/))) {
 				[, lat, lon, zoom] = match;
 			} else if ((match = url.match(/google.*maps.*@(-?\d[0-9.]*),(-?\d[0-9.]*),(\d[0-9.]*)[m]/))) {
 				[, lat, lon, zoom] = match;
-				zoom = Math.round(-1.4436 * Math.log(zoom) + 26.871);
-			} else if ((match = url.match(/google.*maps.*@(-?\d[0-9.]*),(-?\d[0-9.]*),([0-9]*)[a],[0-9.]*y/))) {
-				[, lat, lon, zoom] = match;
-				zoom = Math.round(-1.44 * Math.log(zoom) + 27.5);
+				zoom = Math.round(-1.4446 * Math.log(zoom) + 26.858);
+			} else if ((match = url.match(/google.*maps.*@(-?\d[0-9.]*),(-?\d[0-9.]*),([0-9]*)[a],[0-9.]*y,([0-9.]*)h,([0-9.]*)t/))) {
+				[, lat, lon, zoom, bearing, pitch] = match;
+				zoom = Math.round(-1.3909 * Math.log(zoom) + 25.957);
 				//add pin for street view
 				extra = {
 					pin_lat: lat,
 					pin_lon: lon,
+					bearing,
+					pitch,
 				};
 			} else if ((match = url.match(/google.*maps.*ll=(-?\d[0-9.]*)%2C(-?\d[0-9.]*)&z=(\d[0-9.]*)/))){
 				//https://www.google.com/maps/d/u/0/viewer?mid=1EpC-GTEzYFLFL8kPS1kqT7znfsU&ll=36.06634784473271%2C139.87667246610306&z=9
@@ -110,6 +112,25 @@ let maps = [
 				return [lat, lon, zoom, extra];
 			}
 		},
+	},
+	//https://www.google.com/maps/@35.6005051,139.7139152,22226m/data=!3m1!1e3?entry=ttu
+	//https://www.google.com/maps/@35.4926196,139.7170543,33129a,35y,358.64h,19.9t/data=!3m1!1e3?entry=ttu
+	{
+		name: "Google Satellite View",
+		category: MAIN_CATEGORY,
+		default_check: false,
+		domain: "www.google.com",
+
+		getUrl(lat, lon, zoom, extra) {
+			if (extra && 'bearing' in extra && 'pitch' in extra){
+				const a = Math.floor(Math.exp((zoom - 25.957)/(-1.3909)));
+				return `https://www.google.com/maps/@${lat},${lon},${Math.max(140,a)}a,35y,${extra.bearing}h,${extra.pitch}t/data=!3m1!1e3?entry=ttu`;
+			} else {
+				const m = Math.floor(Math.exp((zoom - 26.858)/(-1.4446)));
+				return `https://www.google.com/maps/@${lat},${lon},${Math.max(140,m)}m/data=!3m1!1e3?entry=ttu`;
+			}
+		},
+
 	},
 	{
 		name: "Google Street View",
@@ -1092,6 +1113,28 @@ let maps = [
 			return "https://www.openrailwaymap.org/?lat=" + lat + "&lon=" + lon + "&zoom=" + zoom;
 		},
 	},
+/* Doesnt work
+	{
+		//https://openlandmap.org/?center=25%2C39&zoom=7.15395439922849&opacity=72&base=OpenStreetMap&layer=lc_glc.fcs30d&time=2022
+		name: "OpenLandMap",
+		category: OTHER_CATEGORY,
+		default_check: false,
+		domain: "openlandmap.org",
+		getUrl(lat, lon, zoom) {
+			return "https://openlandmap.org/?center=" + lon + "%2C" + lat + "&zoom=" + zoom + "&opacity=72&base=OpenStreetMap&layer=lc_glc.fcs30d&time=2022";
+		},
+	},
+*/
+	{
+		//https://waterwaymap.org/#map=14.42/36.63977/118.34716
+		name: "WaterwayMap",
+		category: OTHER_CATEGORY,
+		default_check: false,
+		domain: "waterwaymap.org",
+		getUrl(lat, lon, zoom) {
+			return `https://waterwaymap.org/#map=${zoom}/${lat}/${lon}`;
+		},
+	},
 
 	
 	{
@@ -1425,17 +1468,17 @@ let maps = [
 		},
 	},
 
-	{
+	{//https://plan.tomtom.com/en/?p=35.68504,139.7515,14.16z
 		name: "TomTom MyDrive",
 		category: OTHER_CATEGORY,
 		default_check: false,
 		domain: "tomtom.com",
 		description: "Traffic map",
 		getUrl(lat, lon, zoom) {
-			return "https://mydrive.tomtom.com/en_gb/#mode=viewport+viewport=" + lat + "," + lon + "," + zoom + ",0,-0+ver=3";
+			return `https://plan.tomtom.com/en/?p=${lat},${lon},${zoom}z`;
 		},
 		getLatLonZoom(url) {
-			const match = url.match(/mydrive\.tomtom\.com\/[a-z_]*\/#mode=viewport\+viewport=(-?\d[0-9.]*),(-?\d[0-9.]*),(-?\d[0-9.]*)/);
+			const match = url.match(/\.tomtom\.com\/.*p=(-?\d[0-9.]*),(-?\d[0-9.]*),(\d[0-9.]*)z/);
 			if (match) {
 				const [, lat, lon, zoom] = match;
 				return [lat, lon, Math.round(Number(zoom))];
@@ -1642,6 +1685,27 @@ let maps = [
 			}
 		},
 	},
+	/*
+	{
+		//https://www.norgeskart.no/#!?project=norgeskart&layers=1002&zoom=13&lat=6649044.14&lon=262775.36
+		name: "Norgeskart",
+		category: OTHER_CATEGORY,
+		default_check: false,
+		domain: "www.norgeskart.no",
+		description: "experimental vector map in Norge",
+		getUrl(lat, lon, zoom) {
+			return "https://www.norgeskart.no/#!?project=norgeskart&layers=1002&zoom=" + zoom + "&lat=" + lat + "&lon=" + lon;
+		},
+		getLatLonZoom(url) {
+			const match = url.match(/www\.norgeskart\.no.*#.*layers=1002.*([0-9.]*)\/(-?\d[0-9.]*)\/(-?\d[0-9.]*)/);
+
+			if (match) {
+				const [, zoom, lat, lon] = match;
+				return [lat, normalizeLon(lon), Math.round(Number(zoom))];
+			}
+		},
+	},
+	*/
 	{
 		//https://labs.mapple.com/mapplevt.html?#8.47/35.7472/139.9546
 		name: "MαPPLE",
@@ -1700,19 +1764,19 @@ let maps = [
 		},
 	},
 	{
-		//https://www.strava.com/heatmap#9.41/139.72884/35.84051/hot/all
+		//https://www.strava.com/maps/global-heatmap#18/35.6837/139.75355
 		name: "STRAVA",
 		category: SPECIAL_CATEGORY,
 		default_check: false,
 		domain: "strava.com",
 		description: "Heatmap of athletes activities",
 		getUrl(lat, lon, zoom) {
-			return "https://www.strava.com/heatmap#" + zoom + "/" + lon + "/" + lat + "/hot/all";
+			return "https://www.strava.com/maps/global-heatmap#" + zoom + "/" + lat + "/" + lon ;
 		},
 		getLatLonZoom(url) {
-			const match = url.match(/www\.strava\.com\/heatmap#(\d[0-9.]*)\/(-?\d[0-9.]*)\/(-?\d[0-9.]*)/);
+			const match = url.match(/www\.strava\.com\/.*#(\d[0-9.]*)\/(-?\d[0-9.]*)\/(-?\d[0-9.]*)/);
 			if (match) {
-				const [, zoom, lon, lat] = match;
+				const [, zoom, lat, lon] = match;
 				return [lat, lon, Math.round(Number(zoom))];
 			}
 		},
@@ -2299,6 +2363,38 @@ let maps = [
 			if (match) {
 				const [, zoom, lat, lon] = match;
 				return [lat, normalizeLon(lon), Math.round(Number(zoom))];
+			}
+		},
+	},
+	{
+		//https://maps.qchizu.xyz/maplibre/#9/35.6149/139.5758
+		//https://maps.qchizu.xyz/maplibre/#14.13/35.22667/139.65526/0/38
+		//
+		name: "全国Q地図MapLibre版(JP)",
+		category: LOCAL_CATEGORY,
+		default_check: false,
+		domain: "maps.qchizu.xyz",
+		description: "Maplibre version of Qchizu",
+		getUrl(lat, lon, zoom, extra) {
+			return `https://maps.qchizu.xyz/maplibre/#${Number(zoom)-1}/${lat}/${lon}${extra.bearing && extra.pitch ? '/' + extra.bearing + '/' + extra.pitch : ''}`;
+		},
+		getLatLonZoom(url) {
+			let match;
+			//3D用
+			match = url.match(/qchizu\.xyz\/maplibre\/#(\d[0-9.]*)\/(-?\d[0-9.]*)\/(-?\d[0-9.]*)\/(-?\d[0-9.]*)\/(\d[0-9.]*)/);
+			if (match) {
+				const [, zoom, lat, lon, bearing, pitch] = match;
+				const extra = {
+					bearing: (Number(bearing) + 360) % 360,
+					pitch,
+				};
+				return [lat, normalizeLon(lon), Math.round(Number(zoom)+1), extra];
+			}
+			//平面用
+			match = url.match(/qchizu\.xyz\/maplibre\/#(\d[0-9.]*)\/(-?\d[0-9.]*)\/(-?\d[0-9.]*)/);
+			if (match) {
+				const [, zoom, lat, lon] = match;
+				return [lat, normalizeLon(lon), Math.round(Number(zoom)+1)];
 			}
 		},
 	},
@@ -3151,6 +3247,17 @@ let maps = [
 		description: "",
 		getUrl(lat, lon, zoom) {
 			return `https://sharaku.eorc.jaxa.jp/GSMaP/index.htm?lon=${lon}&lat=${lat}&zoom=${zoom}`;
+		},
+	},
+	{
+		//https://map.osm.wikidata.link/map/16/35.4407/139.6275?radius=5
+		name: "OWL Map",
+		category: SPECIAL_CATEGORY,
+		default_check: false,
+		domain: "wikidata.link",
+		description: "Link Wikidata and OpenStreetMap",
+		getUrl(lat, lon, zoom) {
+			return `https://map.osm.wikidata.link/map/${zoom}/${lat}/${lon}?radius=5`;
 		},
 	},
 ];
